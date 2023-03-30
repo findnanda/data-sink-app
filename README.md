@@ -1,2 +1,2 @@
 # data-sink-app
-Reads data from kakatopic and writes it to a cassandra database
+Reads data from kaka topic and writes it to a cassandra database
