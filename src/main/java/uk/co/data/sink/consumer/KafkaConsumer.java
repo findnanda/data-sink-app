@@ -27,7 +27,7 @@ public class KafkaConsumer {
 
     private final UserRepository userRepository;
 
-    @KafkaListener(topics = "${sink.topics.demo}")
+    @KafkaListener(topics = "${sink.topics.demo.name}")
     public void consumer(final List<User> records,
                          @Header(KafkaHeaders.CONVERSION_FAILURES) List<ConversionException> exceptions) {
         final List<User> deserialsedUsers = new ArrayList<>();
