@@ -13,22 +13,22 @@ import uk.co.data.sink.model.User;
 import uk.co.data.sink.repository.UserRepository;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.assertEquals;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import static uk.co.data.sink.common.EmbeddedKafkaTestConfiguration.DEMO_TOPIC;
+import static uk.co.data.sink.common.EmbeddedKafkaTestConfiguration.*;
 
 @Slf4j
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = WebEnvironment.NONE, classes = DataSinkApplication.class)
-@EmbeddedKafka(partitions = 5, topics = {DEMO_TOPIC}, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092", "offsets.topic.replication.factor=1"})
+@EmbeddedKafka(partitions = 5, topics = {DEMO_TOPIC, GENERIC_FAILURE_TOPIC, CUSTOM_FAILURE_TOPIC},
+        brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092", "offsets.topic.replication.factor=1"})
 public class DataSinkApplicationTest extends CassandraContainerTestConfiguration {
 
     @Autowired
@@ -53,7 +53,7 @@ public class DataSinkApplicationTest extends CassandraContainerTestConfiguration
     }
 
     @Test
-    public void testMessageVolumes() {
+    public void testLargeMessageVolumes() {
         var messages = IntStream.range(0, 100000).mapToObj(i -> buildUser())
                 .parallel().collect(Collectors.toList());
         log.info("records created");
@@ -78,4 +78,18 @@ public class DataSinkApplicationTest extends CassandraContainerTestConfiguration
                 .lastname(RandomStringUtils.randomAlphabetic(7))
                 .build();
     }
+
+    @Test
+    public void testUserRecordDeserialisationError() {
+        testConsumer.subscribe(List.of(GENERIC_FAILURE_TOPIC));
+        kafkaTemplate.sendDefault("11234", "{\"userId\":123,\"firstname\":\"ESFXXI\",\"lastname\":\"dlIkxKs\"}");
+
+        List<Object> result = new ArrayList<>();
+        await().atMost(30, SECONDS).until(() -> {
+            testConsumer.poll(Duration.ofSeconds(10)).forEach((cr) -> result.add(cr.value()));
+            return result.size() >= 1;
+        });
+        Assertions.assertEquals(result.get(0), ("{\"userId\":123,\"firstname\":\"ESFXXI\",\"lastname\":\"dlIkxKs\"}"));
+    }
+
 }

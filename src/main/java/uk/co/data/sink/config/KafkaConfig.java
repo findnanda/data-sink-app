@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.BytesSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +14,6 @@ import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.serializer.DelegatingByTopicSerialization;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
@@ -65,12 +63,12 @@ public class KafkaConfig {
     }
 
     private DeadLetterPublishingRecoverer createDeadLetterPublishingRecoverer() {
-        return new DeadLetterPublishingRecoverer(kafkaTemplate(), (r, ex) -> {
+        return new DeadLetterPublishingRecoverer(retryKafkaTemplate(), (r, ex) -> {
             log.error("unsuccessful retry attempts moving to dlq", ex);
             if (ex instanceof RecordNotSavedException) {
-                return new TopicPartition(r.topic() + ".demo.failures", r.partition());
+                return new TopicPartition(r.topic() + ".custom.failures", r.partition());
             } else {
-                return new TopicPartition(r.topic() + ".other.failures", r.partition());
+                return new TopicPartition(r.topic() + ".generic.failures", r.partition());
             }
         });
     }
@@ -107,5 +105,14 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    @Bean
+    public KafkaTemplate<Object, Object> retryKafkaTemplate() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
 }

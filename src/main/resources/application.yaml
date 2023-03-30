@@ -13,6 +13,7 @@ spring:
       root: INFO
       org.springframework.web: ERROR
 
+
 sink:
   topics:
     demo:
