@@ -1,0 +1,28 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    listener.type: batch
+    consumer:
+      enabled: true
+      group-id: nordConsumer
+      auto.offset.reset: earliest
+      maxPoll.records.config: 4000
+
+  logging:
+    level:
+      root: INFO
+      org.springframework.web: ERROR
+
+sink:
+  topics:
+    demo: nord.demo
+
+# Database
+# FYI..scylla is a ultra low latency database, it can write  10 times faster than cassandra and uses the same driver.
+#Currently I am using Cassandra test container for my integration test
+spring.data.cassandra.keyspace: ${SCYLLA_KEYSPACE}
+spring.data.cassandra.contact-points: ${SCYLLA_HOST}
+spring.data.cassandra.port: ${SCYLLA_PORT}
+# spring.data.cassandra.username: ${SCYLLA_USERNAME}
+# spring.data.cassandra.password: ${SCYLLA_PASSWORD}
+spring.data.cassandra.schema-action: NONE
